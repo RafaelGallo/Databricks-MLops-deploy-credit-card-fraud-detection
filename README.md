@@ -2,8 +2,6 @@
 
 **English:** [README.md](README.md) · **Português:** [README.pt-BR.md](README.pt-BR.md)
 
-End-to-end deployment of a credit card fraud detection model: training on **Databricks** (Delta Lake + MLflow), a prediction service with **FastAPI**, a web interface with **Streamlit**, packaging with **Docker** and scheduling with **Apache Airflow**.
-
 <p align="left">
   <img src="https://img.shields.io/github/last-commit/RafaelGallo/MLOps-deploy-credit-card-fraud-detection?style=flat-square" alt="Last commit">
   <img src="https://img.shields.io/github/stars/RafaelGallo/MLOps-deploy-credit-card-fraud-detection?style=flat-square" alt="Stars">
@@ -32,6 +30,11 @@ End-to-end deployment of a credit card fraud detection model: training on **Data
   <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/Kaggle-dataset-20BEFF?style=flat-square&logo=kaggle&logoColor=white" alt="Kaggle">
 </p>
+
+![](https://github.com/RafaelGallo/Databricks-MLops-deploy-credit-card-fraud-detection/blob/main/img/153.png?raw=true)
+
+End-to-end deployment of a credit card fraud detection model: training on **Databricks** (Delta Lake + MLflow), a prediction service with **FastAPI**, a web interface with **Streamlit**, packaging with **Docker** and scheduling with **Apache Airflow**.
+
 
 ## Table of contents
 
