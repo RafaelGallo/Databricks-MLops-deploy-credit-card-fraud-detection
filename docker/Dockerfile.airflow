@@ -1,0 +1,11 @@
+# airflow base image / imagem base do airflow
+FROM apache/airflow:2.10.5-python3.11
+
+# model dependencies and the databricks provider for the retraining dag / dependências do modelo e provider do databricks para a dag de retreino
+USER airflow
+RUN pip install --no-cache-dir scikit-learn==1.6.1 lightgbm==4.6.0 pandas==2.2.3 joblib==1.4.2 apache-airflow-providers-databricks
+
+# libgomp is required by lightgbm / libgomp é exigida pelo lightgbm
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
+USER airflow
