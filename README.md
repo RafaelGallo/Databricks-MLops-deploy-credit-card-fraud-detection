@@ -1,13 +1,15 @@
 # MLOps Deploy – Credit Card Fraud Detection
 
-Deploy de ponta a ponta de um modelo de detecção de fraude em cartão de crédito: treino no **Databricks** (Delta Lake + MLflow), serviço de predição com **FastAPI**, interface web com **Streamlit**, empacotamento com **Docker** e agendamento com **Apache Airflow**.
+**English:** [README.md](README.md) · **Português:** [README.pt-BR.md](README.pt-BR.md)
+
+End-to-end deployment of a credit card fraud detection model: training on **Databricks** (Delta Lake + MLflow), a prediction service with **FastAPI**, a web interface with **Streamlit**, packaging with **Docker** and scheduling with **Apache Airflow**.
 
 <p align="left">
-  <img src="https://img.shields.io/github/last-commit/RafaelGallo/MLOps-deploy-credit-card-fraud-detection?style=flat-square" alt="Último commit">
+  <img src="https://img.shields.io/github/last-commit/RafaelGallo/MLOps-deploy-credit-card-fraud-detection?style=flat-square" alt="Last commit">
   <img src="https://img.shields.io/github/stars/RafaelGallo/MLOps-deploy-credit-card-fraud-detection?style=flat-square" alt="Stars">
   <img src="https://img.shields.io/github/forks/RafaelGallo/MLOps-deploy-credit-card-fraud-detection?style=flat-square" alt="Forks">
-  <img src="https://img.shields.io/github/repo-size/RafaelGallo/MLOps-deploy-credit-card-fraud-detection?style=flat-square" alt="Tamanho do repositório">
-  <img src="https://img.shields.io/github/license/RafaelGallo/MLOps-deploy-credit-card-fraud-detection?style=flat-square" alt="Licença">
+  <img src="https://img.shields.io/github/repo-size/RafaelGallo/MLOps-deploy-credit-card-fraud-detection?style=flat-square" alt="Repository size">
+  <img src="https://img.shields.io/github/license/RafaelGallo/MLOps-deploy-credit-card-fraud-detection?style=flat-square" alt="License">
 </p>
 
 <p align="left">
@@ -31,126 +33,126 @@ Deploy de ponta a ponta de um modelo de detecção de fraude em cartão de créd
   <img src="https://img.shields.io/badge/Kaggle-dataset-20BEFF?style=flat-square&logo=kaggle&logoColor=white" alt="Kaggle">
 </p>
 
-## Sumário
+## Table of contents
 
-- [Visão geral](#visão-geral)
-- [Arquitetura](#arquitetura)
-- [Dados](#dados)
-- [Modelagem e resultados](#modelagem-e-resultados)
-- [Estrutura do repositório](#estrutura-do-repositório)
-- [Como executar](#como-executar)
-- [Aplicação Streamlit](#aplicação-streamlit)
-- [API FastAPI](#api-fastapi)
-- [Airflow e agendamento](#airflow-e-agendamento)
-- [Deploy online](#deploy-online)
-- [Limitações e próximos passos](#limitações-e-próximos-passos)
-- [Licença](#licença)
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Data](#data)
+- [Modeling and results](#modeling-and-results)
+- [Repository structure](#repository-structure)
+- [How to run](#how-to-run)
+- [Streamlit app](#streamlit-app)
+- [FastAPI service](#fastapi-service)
+- [Airflow and scheduling](#airflow-and-scheduling)
+- [Online deployment](#online-deployment)
+- [Limitations and next steps](#limitations-and-next-steps)
+- [License](#license)
 
-## Visão geral
+## Overview
 
-Fraudes são raras, então a base é extremamente desbalanceada e a acurácia não serve como métrica. O projeto:
+Fraud is rare, so the dataset is extremely imbalanced and accuracy is not a useful metric. This project:
 
-1. Processa a base no Databricks em camadas **bronze → silver → gold** (Delta Lake).
-2. Treina e compara 8 algoritmos com balanceamento **SMOTENC** (oversampling que respeita variáveis categóricas).
-3. Salva cada modelo como um **pipeline completo** (`.joblib`) que já inclui o pré-processamento, então recebe as colunas brutas da transação.
-4. Serve o modelo por **Streamlit** (interface) e **FastAPI** (integração).
-5. Agenda a verificação diária do modelo e o retreino semanal no **Airflow**.
+1. Processes the data on Databricks in **bronze → silver → gold** layers (Delta Lake).
+2. Trains and compares 8 algorithms using **SMOTENC** balancing (oversampling that handles categorical variables).
+3. Saves each model as a **full pipeline** (`.joblib`) that already includes preprocessing, so it accepts the raw transaction columns.
+4. Serves the model through **Streamlit** (interface) and **FastAPI** (integration).
+5. Schedules a daily model check and a weekly retraining run on **Airflow**.
 
-O modelo padrão em produção é o **Random Forest**, o melhor nas métricas ponderadas.
+The default production model is the **Random Forest**, the best performer on the weighted metrics.
 
-## Arquitetura
+## Architecture
 
 ```
-Kaggle (11,2 GB)
+Kaggle (11.2 GB)
       │
       ▼
 Databricks ── Delta Lake: bronze → silver → gold
-      │         └─ treino (SMOTENC) + MLflow
+      │         └─ training (SMOTENC) + MLflow
       ▼
-models/*.joblib  (pipeline = pré-processamento + modelo)
+models/*.joblib  (pipeline = preprocessing + model)
       │
-      ├──► Streamlit  (porta 8501)  interface: transação única e lote CSV
-      ├──► FastAPI    (porta 8000)  endpoint /predict
-      └──► Airflow    (porta 8080)  checagem diária + retreino semanal
+      ├──► Streamlit  (port 8501)  UI: single transaction and CSV batch
+      ├──► FastAPI    (port 8000)  /predict endpoint
+      └──► Airflow    (port 8080)  daily check + weekly retraining
 ```
 
-## Dados
+## Data
 
-- **Fonte:** [Credit Card Fraud Mega Dataset (Kaggle)](https://www.kaggle.com/datasets/karthikgangula/credit-card-fraud-mega-dataset/data), cerca de **11,2 GB**.
-- **A base não está neste repositório** nem é necessária para o deploy: o modelo salvo já contém o pré-processamento.
-- Dados pessoais são removidos na camada silver.
+- **Source:** [Credit Card Fraud Mega Dataset (Kaggle)](https://www.kaggle.com/datasets/karthikgangula/credit-card-fraud-mega-dataset/data), about **11.2 GB**.
+- **The data is not in this repository** and is not needed for deployment: the saved model already contains the preprocessing.
+- Personal data is removed in the silver layer.
 
-### Features usadas pelo modelo
+### Features used by the model
 
-| Coluna | Tipo | Descrição |
+| Column | Type | Description |
 |---|---|---|
-| `category` | categórica | Categoria do estabelecimento (14 valores, ex.: `grocery_pos`, `shopping_net`) |
-| `state` | categórica | Estado do cliente (51 valores, siglas dos EUA) |
-| `gender` | categórica | `F` ou `M` |
-| `amt` | numérica | Valor da transação |
-| `city_pop` | numérica | População da cidade |
-| `age` | numérica | Idade do cliente |
-| `distance_km` | numérica | Distância entre cliente e comerciante (km) |
-| `hour` | numérica | Hora da transação (0–23) |
-| `day_of_week` | numérica | Dia da semana (1 = domingo … 7 = sábado) |
-| `month` | numérica | Mês (1–12) |
+| `category` | categorical | Merchant category (14 values, e.g. `grocery_pos`, `shopping_net`) |
+| `state` | categorical | Customer state (51 values, US state codes) |
+| `gender` | categorical | `F` or `M` |
+| `amt` | numeric | Transaction amount |
+| `city_pop` | numeric | City population |
+| `age` | numeric | Customer age |
+| `distance_km` | numeric | Distance between customer and merchant (km) |
+| `hour` | numeric | Hour of the transaction (0–23) |
+| `day_of_week` | numeric | Day of the week (1 = Sunday … 7 = Saturday) |
+| `month` | numeric | Month (1–12) |
 
-Alvo: `is_fraud` (1 = fraude).
+Target: `is_fraud` (1 = fraud).
 
-## Modelagem e resultados
+## Modeling and results
 
-Pipeline de cada modelo: `OrdinalEncoder` (categóricas, categorias desconhecidas → `-1`) + `StandardScaler` (numéricas) + algoritmo. O oversampling com **SMOTENC** (`sampling_strategy=0.5`, `k_neighbors=5`) é aplicado **somente no treino**; o teste permanece intacto, com pesos amostrais para refletir a distribuição real.
+Each model's pipeline: `OrdinalEncoder` (categoricals, unknown categories → `-1`) + `StandardScaler` (numerics) + the algorithm. **SMOTENC** oversampling (`sampling_strategy=0.5`, `k_neighbors=5`) is applied to the **training set only**; the test set stays untouched, with sample weights to reflect the real distribution.
 
-Métricas ponderadas no conjunto de teste (`output/metricas_smotenc.csv`):
+Weighted metrics on the test set (`output/metricas_smotenc.csv`):
 
-| Modelo | PR-AUC | ROC-AUC | Recall com precisão ≥ 90% |
+| Model | PR-AUC | ROC-AUC | Recall at precision ≥ 90% |
 |---|---|---|---|
-| **random_forest** | **0,702** | 0,971 | **56,7%** |
-| adaboost | 0,588 | 0,968 | 45,9% |
-| extra_trees | 0,298 | 0,929 | 8,8% |
-| xgboost | 0,204 | 0,898 | 7,7% |
-| lightgbm | 0,179 | 0,935 | 3,2% |
-| hist_gradient_boosting | 0,107 | 0,905 | 2,9% |
-| arvore_decisao | 0,011 | 0,784 | 0,0% |
-| regressao_logistica | 0,004 | 0,416 | 0,0% |
+| **random_forest** | **0.702** | 0.971 | **56.7%** |
+| adaboost | 0.588 | 0.968 | 45.9% |
+| extra_trees | 0.298 | 0.929 | 8.8% |
+| xgboost | 0.204 | 0.898 | 7.7% |
+| lightgbm | 0.179 | 0.935 | 3.2% |
+| hist_gradient_boosting | 0.107 | 0.905 | 2.9% |
+| arvore_decisao (decision tree) | 0.011 | 0.784 | 0.0% |
+| regressao_logistica (logistic regression) | 0.004 | 0.416 | 0.0% |
 
-Operando no limiar que maximiza o F1 (`output/classification_report_smotenc.csv`), o Random Forest atinge **precisão 87,2%**, **recall 59,6%** e **F1 0,708**, com taxa de alarme falso de 0,04%.
+At the threshold that maximizes F1 (`output/classification_report_smotenc.csv`), the Random Forest reaches **precision 87.2%**, **recall 59.6%** and **F1 0.708**, with a false alarm rate of 0.04%.
 
-> A PR-AUC é a métrica principal porque a classe positiva é muito rara.
+> PR-AUC is the main metric because the positive class is very rare.
 
-## Estrutura do repositório
+## Repository structure
 
 ```
 .
 ├── app/
-│   ├── streamlit_app.py        # interface Streamlit
-│   └── main.py                 # API FastAPI
+│   ├── streamlit_app.py        # Streamlit interface
+│   └── main.py                 # FastAPI service
 ├── airflow/
 │   ├── dags/
-│   │   ├── monitoramento_modelo.py   # checagem diária do modelo
-│   │   └── retreino_fraude.py        # retreino semanal (Databricks)
-│   └── retrain_lightgbm.py     # script de retreino executado no Databricks
+│   │   ├── monitoramento_modelo.py   # daily model check
+│   │   └── retreino_fraude.py        # weekly retraining (Databricks)
+│   └── retrain_lightgbm.py     # retraining script run on Databricks
 ├── docker/
-│   ├── Dockerfile              # API FastAPI
-│   ├── Dockerfile.streamlit    # app Streamlit
-│   ├── Dockerfile.airflow      # Airflow + dependências do modelo
+│   ├── Dockerfile              # FastAPI service
+│   ├── Dockerfile.streamlit    # Streamlit app
+│   ├── Dockerfile.airflow      # Airflow + model dependencies
 │   └── requirements.txt
-├── models/                     # pipelines treinados (.joblib)
-├── mlflow/modelos/             # modelos exportados do MLflow
-├── output/                     # métricas, relatórios e saúde do modelo
-├── docker-compose.yml          # sobe Streamlit + API + Airflow
+├── models/                     # trained pipelines (.joblib)
+├── mlflow/modelos/             # models exported from MLflow
+├── output/                     # metrics, reports and model health
+├── docker-compose.yml          # starts Streamlit + API + Airflow
 ├── requirements.txt
 └── README.md
 ```
 
-## Como executar
+## How to run
 
-### Pré-requisitos
+### Prerequisites
 
-- Python 3.11 ou 3.12
-- Docker Desktop (para a stack completa)
+- Python 3.11 or 3.12
+- Docker Desktop (for the full stack)
 
-### Opção 1 – Local
+### Option 1 – Local
 
 ```bash
 python -m venv .venv
@@ -161,34 +163,34 @@ pip install -r requirements.txt
 streamlit run app/streamlit_app.py
 ```
 
-Acesse http://localhost:8501.
+Open http://localhost:8501.
 
-> Use as versões fixadas em `requirements.txt` (`scikit-learn==1.6.1`, `numpy==2.1.3`, `lightgbm==4.6.0`): os modelos foram salvos com elas e versões diferentes podem falhar ao carregar o `.joblib`.
+> Use the pinned versions in `requirements.txt` (`scikit-learn==1.6.1`, `numpy==2.1.3`, `lightgbm==4.6.0`): the models were saved with them, and different versions may fail to load the `.joblib` file.
 
-### Opção 2 – Docker Compose (stack completa)
+### Option 2 – Docker Compose (full stack)
 
 ```bash
 docker compose up --build
 ```
 
-| Serviço | URL | Observação |
+| Service | URL | Notes |
 |---|---|---|
-| Streamlit | http://localhost:8501 | interface do modelo |
-| API FastAPI | http://localhost:8000/docs | documentação interativa |
-| Airflow | http://localhost:8080 | usuário `admin`, senha `admin` |
+| Streamlit | http://localhost:8501 | model interface |
+| FastAPI | http://localhost:8000/docs | interactive documentation |
+| Airflow | http://localhost:8080 | user `admin`, password `admin` |
 
-Para parar: `docker compose down`.
+To stop: `docker compose down`.
 
-### Opção 3 – Apenas um container
+### Option 3 – Single container
 
 ```bash
 docker build -f docker/Dockerfile.streamlit -t fraude-streamlit .
 docker run -p 8501:8501 fraude-streamlit
 ```
 
-### Trocar o modelo
+### Switching the model
 
-O caminho do modelo vem da variável `MODELO_PATH`, sem alterar código:
+The model path comes from the `MODELO_PATH` environment variable, no code changes needed:
 
 ```bash
 # Windows PowerShell
@@ -196,27 +198,27 @@ $env:MODELO_PATH = "models/adaboost.joblib"
 streamlit run app/streamlit_app.py
 ```
 
-## Aplicação Streamlit
+## Streamlit app
 
-### Demonstração
+### Demo
 
-Transação classificada como **fraude** (probabilidade de 82,54%):
+Transaction classified as **fraud** (82.54% probability):
 
-![Transação classificada como fraude](img/fraud.png)
+![Transaction classified as fraud](img/fraud.png)
 
-Transação classificada como **legítima** (probabilidade de 20,72%, abaixo do limiar de 0,50):
+Transaction classified as **legitimate** (20.72% probability, below the 0.50 threshold):
 
-![Transação classificada como legítima](img/no_fraud.png)
+![Transaction classified as legitimate](img/no_fraud.png)
 
-### Funcionalidades
+### Features
 
-- **Transação única:** formulário com os campos acima; mostra a probabilidade de fraude e o veredito.
-- **Lote (CSV):** envie um CSV com as 10 colunas; o app classifica tudo, mostra o total de fraudes sinalizadas e permite baixar o resultado.
-- **Limiar de decisão:** controle na barra lateral (padrão 0,50). Limiar menor aumenta o recall e também os falsos positivos.
+- **Single transaction:** a form with the fields above; shows the fraud probability and the verdict.
+- **Batch (CSV):** upload a CSV with the 10 columns; the app scores everything, shows the number of flagged frauds and lets you download the result.
+- **Decision threshold:** a sidebar control (default 0.50). A lower threshold raises recall and also false positives.
 
-## API FastAPI
+## FastAPI service
 
-Variáveis de ambiente: `MODELO_PATH` (caminho do `.joblib`) e `LIMIAR` (padrão `0.5`).
+Environment variables: `MODELO_PATH` (path to the `.joblib`) and `LIMIAR` (threshold, default `0.5`).
 
 ```bash
 curl -X POST http://localhost:8000/predict \
@@ -226,50 +228,50 @@ curl -X POST http://localhost:8000/predict \
        "day_of_week":6,"month":11}'
 ```
 
-Resposta:
+Response:
 
 ```json
 {"probabilidade_fraude": 0.93, "fraude": true, "limiar": 0.5}
 ```
 
-| Endpoint | Método | Função |
+| Endpoint | Method | Purpose |
 |---|---|---|
-| `/health` | GET | checagem de disponibilidade |
-| `/predict` | POST | probabilidade e decisão de fraude |
+| `/health` | GET | liveness check |
+| `/predict` | POST | fraud probability and decision |
 
-## Airflow e agendamento
+## Airflow and scheduling
 
-| DAG | Agenda | O que faz |
+| DAG | Schedule | What it does |
 |---|---|---|
-| `monitoramento_modelo_fraude` | diária (`@daily`) | Carrega o modelo, pontua transações de exemplo, valida que as probabilidades estão em [0, 1] e grava `output/saude_modelo.json` |
-| `retreino_fraude_lightgbm` | semanal (`@weekly`) | Dispara no Databricks o job de ETL e depois o de retreino |
+| `monitoramento_modelo_fraude` | daily (`@daily`) | Loads the model, scores sample transactions, checks that the probabilities are in [0, 1] and writes `output/saude_modelo.json` |
+| `retreino_fraude_lightgbm` | weekly (`@weekly`) | Triggers the ETL job and then the retraining job on Databricks |
 
-**Retreino com campeão/desafiante:** `retrain_lightgbm.py` treina um desafiante, compara a PR-AUC ponderada com o modelo atual no mesmo teste e só promove se vencer por uma margem de 0,002, guardando backup do campeão anterior e registrando a execução no MLflow.
+**Champion/challenger retraining:** `retrain_lightgbm.py` trains a challenger, compares its weighted PR-AUC against the current model on the same test set, and promotes it only if it wins by a margin of 0.002. It keeps a backup of the previous champion and logs the run to MLflow.
 
-**Configuração da DAG de retreino:** crie no Airflow a conexão `databricks_default` (host e token do workspace) e troque os `job_id` de exemplo (`111` e `222`) pelos IDs reais dos seus jobs. Sem isso, a DAG semanal falha; a DAG diária de monitoramento funciona sem configuração extra.
+**Retraining DAG setup:** create the `databricks_default` connection in Airflow (workspace host and token) and replace the example `job_id` values (`111` and `222`) with your real job IDs. Without this, the weekly DAG fails; the daily monitoring DAG works with no extra setup.
 
-> A senha `admin` do Airflow é apenas para uso local. Troque-a antes de expor o serviço.
+> The Airflow `admin` password is for local use only. Change it before exposing the service.
 
-## Deploy online
+## Online deployment
 
-**Streamlit Community Cloud (gratuito):**
+**Streamlit Community Cloud (free):**
 
-1. Suba o repositório ao GitHub, incluindo `models/random_forest.joblib`.
-2. Em https://share.streamlit.io clique em **Create app**.
-3. Escolha o repositório, a branch `main` e o arquivo `app/streamlit_app.py`.
-4. Em *Advanced settings*, selecione Python 3.11 ou 3.12 e clique em **Deploy**.
+1. Push the repository to GitHub, including `models/random_forest.joblib`.
+2. At https://share.streamlit.io click **Create app**.
+3. Choose the repository, the `main` branch and the file `app/streamlit_app.py`.
+4. Under *Advanced settings* select Python 3.11 or 3.12 and click **Deploy**.
 
-## Limitações e próximos passos
+## Limitations and next steps
 
-- Os limiares ótimos por modelo (critérios `p90` e `f1`) existem no notebook do Databricks, mas `output/limiares_smotenc.json` está vazio. Exportá-los permitiria fixar o limiar de produção do Random Forest.
-- O script de retreino atual cobre o LightGBM; falta um equivalente para o Random Forest, que é o modelo em uso.
-- Monitoramento de *data drift* e de desempenho em produção ainda não implementado.
-- Autenticação na API e senhas fora do código para um ambiente de produção.
+- The optimal per-model thresholds (the `p90` and `f1` criteria) exist in the Databricks notebook, but `output/limiares_smotenc.json` is empty. Exporting them would let us fix the production threshold for the Random Forest.
+- The current retraining script covers LightGBM only; an equivalent for the Random Forest, the model in use, is missing.
+- Data drift and production performance monitoring are not implemented yet.
+- API authentication and secrets kept out of the code for a production environment.
 
-## Licença
+## License
 
-Distribuído sob a licença MIT. Veja o arquivo [LICENSE](LICENSE).
+Distributed under the MIT license. See the [LICENSE](LICENSE) file.
 
-## Autor
+## Author
 
 **Rafael Gallo**
